@@ -22,7 +22,7 @@
     "```bash\n",
     "% g++ -g -O2 -std=c++11 -pthread -march=native testing_ntl.cpp -o testing_ntl -lntl -lgmp -lm && ./testing_ntl\n",
     "```\n",
-    "It will create an executeable file called testing_ntl, which asks you for two numbers $a,b$ and will compute $(a+1)(b+1)$.\n",
+    "It will create an executable file called testing_ntl, which asks you for two numbers $a,b$ and will compute $(a+1)(b+1)$.\n",
     "   1. The tag -o stands for the output file and && concatenates two bash commands.\n",
     "   2. Moreover, ./testing_ntl will execute the compiled program."
    ]

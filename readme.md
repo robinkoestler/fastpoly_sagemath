@@ -20,11 +20,3 @@ It will create an executable file called testing_ntl, which asks you for two num
    1. The tag -o stands for the output file and && concatenates two bash commands.
    2. Moreover, ./testing_ntl will execute the compiled program.
 4. (UNRELATED) Include C++ code in SageMath. [Link](https://doc.sagemath.org/html/en/thematic_tutorials/cython_interface.html#calling-code-from-a-compiled-library)
-5. Install the following to run Cython code:
-```bash
-   pip install Cython
-   brew tap Macaulay2/tap
-   brew install givaro fflas-ffpack
-   brew install gsl linbox Singular libpng gd automake
-
-```

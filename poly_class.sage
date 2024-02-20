@@ -1,5 +1,6 @@
 from sage.libs.ntl import *
 from sage.rings.polynomial.polynomial_integer_dense_ntl import *
+from sage.libs.ntl.ntl_ZZ_p import ntl_ZZ_p_random_element
 import time
 
 def set_ntl(element, modulus=None):
@@ -24,11 +25,11 @@ class Poly:
         cls.indices_auto5_poly = ntl.ZZ_pX(cls.indices_auto5, cls.N2)
               
     @classmethod
-    def random(cls, modulus=None): # slow ~ 400ms, about 10x slower than NTL
-        # maybe we use the NTL random function instead
-        m = modulus if modulus is not None else cls.modulus
-        ring = PolynomialRing(Zmod(m), 'x').quotient(x**cls.N + 1)
-        return Poly(set_ntl(ring.random_element().list(), m), m)
+    def random(cls, modulus): # 40ms
+        temp = set_ntl([0], modulus=modulus)
+        for i in range(cls.N):
+            temp[i] = ntl_ZZ_p_random_element(modulus)
+        return Poly(temp, modulus)
     
     ## CREATION
 
@@ -40,7 +41,7 @@ class Poly:
             self.c = set_ntl(coeffs, modulus)
         elif isinstance(coeffs, Poly):
             self.c = coeffs.c
-        else:    
+        else:
             self.c = coeffs
             
     # ARITHMETIC OPERATORS
@@ -49,7 +50,7 @@ class Poly:
         return Poly(self.c + other.c, self.modulus)
     
     def __radd__(self, other):
-        return Poly(self.c + other.c, self.modulus)
+        return self + other
 
     def __iadd__(self, other):
         self.c += other.c
@@ -59,7 +60,7 @@ class Poly:
         return Poly(self.c - other.c, self.modulus)
     
     def __rsub__(self, other):
-        return Poly(other.c - self.c, self.modulus)
+        return -self + other
     
     def __isub__(self, other):
         self.c -= other.c
@@ -74,6 +75,13 @@ class Poly:
         if isinstance(other, Poly): # 90ms, if you square it's 60ms
             product = self.mod_quo(self.c * other.c)
         else: # integer multiplication, about 5ms
+            product = self.c * set_ntl([other], self.modulus)
+        return Poly(product, self.modulus)
+    
+    def __rmul__(self, other):
+        if isinstance(other, Poly):
+            return other * self
+        else:
             product = self.c * set_ntl([other], self.modulus)
         return Poly(product, self.modulus)
     
@@ -96,32 +104,44 @@ class Poly:
         
     ## SCALING OPERATORS
     
-    def rescale(self, other):
-        return Poly(self.c._right_pshift(ntl.ZZ(other)), other)
+    def rescale(self, other): # 5-6ms
+        assert self.modulus % other == 0, "Modulus must be divisible by the scaling factor!"
+        newmod = self.modulus // other
+        return Poly(self.c._right_pshift(ntl.ZZ(other)), newmod) % newmod
     
     def __truediv__(self, other): # 5-6ms
+        if other == 1:
+            return self
         # in contrary to rescale, this does not scale down the modulus
-        return self.rescale(other) % self.modulus        
+        assert self.modulus % other == 0, "Modulus must be divisible by the scaling factor!"
+        return Poly(self.c._right_pshift(ntl.ZZ(other)), self.modulus) % self.modulus
+
     
     # MODULAR OPERATORS
     
-    def __mod__(self, modulus): # fast, for the necessary cases 1-2ms
+    def __mod__(self, modulus): # fast, for the necessary cases 2-3ms
+        # Avoid calling % p if the modulus is 0!
+        
         Poly.modulus = modulus
         element_modulus = self.element_modulus()
         
         if modulus == 0: # this does convert to ZZX!!
             if element_modulus == 0:
                 return self
-            else: # slow takes 300ms
-                return Poly(ntl.ZZX(self.c), 0)
+            else: # ~ 8ms
+                zero = ntl.ZZX([0])
+                zero.preallocate_space(self.N)
+                for i in range(self.N):
+                    zero[i] = self[i].lift()
+                return Poly(zero, 0)
             
-        elif element_modulus == 0: # slow! 400ms
-            return Poly(ntl.ZZ_pX(self.c, modulus), modulus)
+        elif element_modulus == 0: # slow! 333ms
+            return Poly(set_ntl(self.c.list(), modulus), modulus)
         
         elif modulus == element_modulus:
             return self
         
-        else:
+        else: # 2-3ms
             tmp = self.c.convert_to_modulus(ntl.ZZ_pContext(modulus))
             return Poly(tmp, modulus)
     
@@ -192,14 +212,17 @@ class Poly:
     
     ## PRINTING AND REPRESENTATION
     
-    def centered_list(self): # we perform the central reduction in [-Q//2, Q//2)
+    def centered_list(self): # ~ 20ms
+        # we perform the central reduction in [-Q//2, Q//2)
         if self.modulus == 0:
             return self.c.list()
-        temp = set_ntl((self % self.modulus).c.list()).list()
-        return [a if a < self.modulus//2 else a - self.modulus for a in temp]
+        result = [0] * self.N
+        for i in range(self.N):
+            result[i] = self.c[i].lift_centered()
+        return result
     
-    def norm(self): # slow, 400ms
-        return max([abs(a) for a in self.R(self.centered_list())])
+    def norm(self): # ~30ms
+        return max([abs(ZZ(a)) for a in self.centered_list()])
     
     def __repr__(self): # doesn't need to be fast
         return str(self.R(self.centered_list()))
@@ -217,15 +240,23 @@ class Poly:
         return self.c == other.c
     
     def NTL_zero(self): # gives a zero for the current ring
-        tmp = copy(self.c)
+        tmp = self.c.__copy__()
         tmp.clear()
         return tmp
     
     def zero(self): 
         return Poly(self.NTL_zero(), self.element_modulus())
         
-    def list(self):
+    def list(self, full=False):
+        if full:
+            l = self.c.list()
+            return l + [0] * (self.N - len(l))
         return self.c.list()
+    
+    def lift(self):
+        if self.modulus == 0:
+            return [ZZ(i) for i in self.list(full=True)]
+        pass # TODO
     
     def clear(self): # Resets this polynomial to zero, changes in place
         self.c.clear()

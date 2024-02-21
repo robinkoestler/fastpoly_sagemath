@@ -16,6 +16,8 @@ class Poly:
         cls.N, cls.N2 = N, N*2
         # here we store the general modulus of the class, not to be confused with self.modulus
         cls.modulus = 0 if modulus is None else modulus
+        if cls.modulus & cls.modulus - 1 != 0:
+            print(f"Warning: Modulus {cls.modulus} should be a power of 2!")
         cls.R = PolynomialRing(ZZ, 'x') # for printing
         cls.precomputations()
         
@@ -23,6 +25,7 @@ class Poly:
     def precomputations(cls):
         cls.indices_auto5 = [ZZ((i * Zmod(cls.N2)(5)) % (cls.N2)) for i in range(cls.N)]
         cls.indices_auto5_poly = ntl.ZZ_pX(cls.indices_auto5, cls.N2)
+        cls.sum_of_monomials = Poly(ntl.ZZ_pX([1] * cls.N, cls.modulus))
               
     @classmethod
     def random(cls, modulus): # 40ms
@@ -35,7 +38,8 @@ class Poly:
 
     def __init__(self, coeffs, modulus=None):
         self.modulus = self.modulus if modulus is None else modulus
-        
+        if self.modulus & self.modulus - 1 != 0:
+            print(f"Warning: Modulus {self.modulus} should be a power of 2!")
         if isinstance(coeffs, list):
             assert len(coeffs) <= self.N
             self.c = set_ntl(coeffs, modulus)
@@ -115,8 +119,21 @@ class Poly:
         # in contrary to rescale, this does not scale down the modulus
         assert self.modulus % other == 0, "Modulus must be divisible by the scaling factor!"
         return Poly(self.c._right_pshift(ntl.ZZ(other)), self.modulus) % self.modulus
-
     
+    def scale(self, other, newmod=False): # 7ms
+        # this scales and rounds correctly, that is centralized!
+        if other == 1:
+            return self
+        assert self.modulus % other == 0, "Modulus must be divisible by the scaling factor!"
+        assert self.modulus & self.modulus - 1 == 0, "Modulus must be a power of 2!"
+        assert other & other - 1 == 0, "Scaling factor must be a power of 2!"
+        shift = (self.sum_of_monomials * (other // 2)) % self.modulus # for the rounding
+        result = (self + shift).c._right_pshift(ntl.ZZ(other))
+        if newmod:
+            quotient = self.modulus // other
+            return Poly(result, quotient) % quotient
+        return Poly(result, self.modulus) % self.modulus
+
     # MODULAR OPERATORS
     
     def __mod__(self, modulus): # fast, for the necessary cases 2-3ms
@@ -229,7 +246,7 @@ class Poly:
 
     # OTHER METHODS
     
-    def __copy__(self):
+    def __copy__(self): # doesn't really work in Sage??
         return Poly(copy(self.c), self.modulus)
     
     def __eq__(self, other):

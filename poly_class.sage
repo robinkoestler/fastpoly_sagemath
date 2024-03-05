@@ -108,15 +108,11 @@ class Poly:
         
     ## SCALING OPERATORS
     
-    def rescale(self, other): # 5-6ms
-        assert self.modulus % other == 0, "Modulus must be divisible by the scaling factor!"
-        newmod = self.modulus // other
-        return Poly(self.c._right_pshift(ntl.ZZ(other)), newmod) % newmod
-    
-    def __truediv__(self, other): # 5-6ms
+    def __truediv__(self, other): # 5-6ms, deprecate
         if other == 1:
             return self
-        # in contrary to rescale, this does not scale down the modulus
+        # in contrary to scale(), this does not scale down the modulus
+        # but it does not round as expected.
         assert self.modulus % other == 0, "Modulus must be divisible by the scaling factor!"
         return Poly(self.c._right_pshift(ntl.ZZ(other)), self.modulus) % self.modulus
     

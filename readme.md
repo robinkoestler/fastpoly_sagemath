@@ -19,4 +19,3 @@
 It will create an executable file called testing_ntl, which asks you for two numbers $a,b$ and will compute $(a+1)(b+1)$.
    1. The tag -o stands for the output file and && concatenates two bash commands.
    2. Moreover, ./testing_ntl will execute the compiled program.
-4. (UNRELATED) Include C++ code in SageMath. [Link](https://doc.sagemath.org/html/en/thematic_tutorials/cython_interface.html#calling-code-from-a-compiled-library)

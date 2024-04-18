@@ -41,8 +41,8 @@ class Poly:
         if self.modulus & self.modulus - 1 != 0:
             print(f"Warning: Modulus {self.modulus} should be a power of 2!")
         if isinstance(coeffs, list):
-            assert len(coeffs) <= self.N
-            self.c = set_ntl(coeffs, modulus)
+            assert len(coeffs) <= self.N, f"Too many = {len(coeffs)} coefficients for degree {self.N}!"
+            self.c = set_ntl(coeffs, self.modulus)
         elif isinstance(coeffs, Poly):
             self.c = coeffs.c
         else:

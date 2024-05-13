@@ -1,6 +1,7 @@
 from sage.libs.ntl import *
 from sage.rings.polynomial.polynomial_integer_dense_ntl import *
 from sage.libs.ntl.ntl_ZZ_p import ntl_ZZ_p_random_element
+from sage.structure.element import is_Element
 import time
 
 def set_ntl(element, modulus=None):
@@ -37,9 +38,13 @@ class Poly:
     ## CREATION
 
     def __init__(self, coeffs, modulus=None):
+        assert hasattr(self, 'N'), "You need to call setup() first!"
         self.modulus = self.modulus if modulus is None else modulus
         if self.modulus & self.modulus - 1 != 0:
             print(f"Warning: Modulus {self.modulus} should be a power of 2!")
+        if is_Element(coeffs):
+            print("(Poly): Warning: You are passing a SageMath object as coefficients!")
+            coeffs = coeffs.list()
         if isinstance(coeffs, list):
             assert len(coeffs) <= self.N, f"Too many = {len(coeffs)} coefficients for degree {self.N}!"
             self.c = set_ntl(coeffs, self.modulus)

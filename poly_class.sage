@@ -207,6 +207,9 @@ class Poly:
         return Poly(result.truncate(self.N), self.modulus)        
     
     # ACCESSORS
+
+    def __len__(self):
+        return self.N
     
     def __setitem__(self, key, value):
         self.c[key] = value

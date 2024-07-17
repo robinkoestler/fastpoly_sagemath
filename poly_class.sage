@@ -116,10 +116,10 @@ class Poly:
     def __truediv__(self, other): # 5-6ms, deprecate
         if other == 1:
             return self
-        # in contrary to scale(), this does not scale down the modulus
+        # in contrary to scale(), this does not scale down the modulus, and it does not reduce
         # but it does not round as expected.
         assert self.modulus % other == 0, "Modulus must be divisible by the scaling factor!"
-        return Poly(self.c._right_pshift(ntl.ZZ(other)), self.modulus) % self.modulus
+        return Poly(self.c._right_pshift(ntl.ZZ(other)), self.modulus)
     
     def scale(self, other, newmod=False): # 7ms
         # this scales and rounds correctly, that is centralized!

@@ -121,19 +121,25 @@ class Poly:
         assert self.modulus % other == 0, "Modulus must be divisible by the scaling factor!"
         return Poly(self.c._right_pshift(ntl.ZZ(other)), self.modulus)
     
-    def scale(self, other, newmod=False): # 7ms
+    def scale(self, other, newmod=False, center=False): # 7ms
         # this scales and rounds correctly, that is centralized!
         if other == 1:
             return self
         assert self.modulus % other == 0, "Modulus must be divisible by the scaling factor!"
         assert self.modulus & self.modulus - 1 == 0, "Modulus must be a power of 2!"
         assert other & other - 1 == 0, "Scaling factor must be a power of 2!"
+        if center: # We run into a wrong algorithm below, if the coefficients are negative within the modulus.
+            self = self.center()
         shift = (self.sum_of_monomials * (other // 2)) % self.modulus # for the rounding
         result = (self + shift).c._right_pshift(ntl.ZZ(other))
+        assert not (center and newmod), "Both should not be used together"
+        if center:
+            return Poly(result, self.modulus)
         if newmod:
             quotient = self.modulus // other
             return Poly(result, quotient) % quotient
         return Poly(result, self.modulus) % self.modulus
+        
 
     # MODULAR OPERATORS
     
@@ -162,6 +168,15 @@ class Poly:
         else: # 2-3ms
             tmp = self.c.convert_to_modulus(ntl.ZZ_pContext(modulus))
             return Poly(tmp, modulus)
+        
+    def center(self): # For a given modulus, this changes the polynomial to its centered representation, ˜24ms
+        assert self.modulus > 0, "Modulus 0 is not allowed"
+        half_modulus = self.modulus // 2 - 1
+        for i in range(self.N):
+            if ZZ(self.c[i]) > half_modulus:
+                self.c[i] -= self.modulus
+        return self
+                
     
     def mod_quo(self, element, minus=True): # 1-2ms
         if minus: # mod X^N + 1

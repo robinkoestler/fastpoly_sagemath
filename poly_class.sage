@@ -113,6 +113,24 @@ class Poly:
         
     ## SCALING OPERATORS
     
+    def center_div(self, other):
+        assert other != 0, "Division by zero!"
+        if other == 1:
+            return self
+        if self.modulus == 0:
+            for i in range(self.N):
+                self[i] = ZZ(self[i]) // other
+        else: # we need to center appropriately first, see .center() method
+            half_modulus = self.modulus // 2 - 1
+            for i in range(self.N):
+                value = ZZ(self.c[i])
+                if value > half_modulus:
+                    self.c[i] = (value - self.modulus) // other
+                else:
+                    self.c[i] = value // other
+        return self
+        
+    
     def __truediv__(self, other): # 5-6ms, deprecate
         if other == 1:
             return self

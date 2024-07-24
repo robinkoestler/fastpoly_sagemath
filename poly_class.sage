@@ -150,13 +150,21 @@ class Poly:
             self = self.center()
         shift = (self.sum_of_monomials * (other // 2)) % self.modulus # for the rounding
         result = (self + shift).c._right_pshift(ntl.ZZ(other))
-        assert not (center and newmod), "Both should not be used together"
-        if center:
-            return Poly(result, self.modulus)
+        #assert not (center and newmod), "Both should not be used together"
         if newmod:
             quotient = self.modulus // other
+            if center:
+                return Poly(result, quotient).center()
             return Poly(result, quotient) % quotient
+        if center:
+            return Poly(result, self.modulus)
         return Poly(result, self.modulus) % self.modulus
+    
+    def newscale(self, other, newmod=False):
+        new = self % 0
+        for i in range(self.N):
+            new[i] = ZZ(new[i]) // other
+        return new
         
 
     # MODULAR OPERATORS
@@ -174,7 +182,7 @@ class Poly:
                 zero = ntl.ZZX([0])
                 zero.preallocate_space(self.N)
                 for i in range(self.N):
-                    zero[i] = self[i].lift()
+                    zero[i] = self[i].lift_centered()
                 return Poly(zero, 0)
             
         elif element_modulus == 0: # slow! 333ms
@@ -204,12 +212,15 @@ class Poly:
            
     ## SHIFTS AND AUTOMORPHISMS
         
-    def __lshift__(self, n): # about 1-2ms
+    def __lshift__(self, n, monom=False): # about 1-2ms
         temp = self.c.left_shift(n % self.N)
-        return Poly(self.mod_quo(temp, minus=False), self.modulus)
+        return Poly(self.mod_quo(temp, minus=monom), self.modulus)
     
     def __rshift__(self, n):
         return self << (self.N - n)
+    
+    def monomial_shift(self, n): # 1-2ms
+        return self.__lshift__(n, monom=True)
     
     def auto5(self): # 11 ms atm
         result = self.NTL_zero()
@@ -300,6 +311,13 @@ class Poly:
     
     def zero(self): 
         return Poly(self.NTL_zero(), self.element_modulus())
+    
+    def const(self, value):
+        m = self.element_modulus()
+        return Poly(set_ntl([value], m), m)
+    
+    def monomial(self, index):
+        return self.const(1) << index
         
     def list(self, full=False):
         if full:
@@ -310,7 +328,8 @@ class Poly:
     def lift(self):
         if self.modulus == 0:
             return [ZZ(i) for i in self.list(full=True)]
-        pass # TODO
+        else:
+            print(".lift(): Not implemented!")
     
     def clear(self): # Resets this polynomial to zero, changes in place
         self.c.clear()

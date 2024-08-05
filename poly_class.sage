@@ -3,13 +3,14 @@ from sage.rings.polynomial.polynomial_integer_dense_ntl import *
 from sage.libs.ntl.ntl_ZZ_p import ntl_ZZ_p_random_element
 from sage.structure.element import is_Element
 import time
+import numpy as np
 
 def set_ntl(element, modulus=None):
+    if type(element) == np.ndarray: element = list(element)
     # chooses between ZZX and ZZ_pX based on modulus given
     if modulus == 0 or modulus is None:
         return ntl.ZZX(element)
-    else:
-        return ntl.ZZ_pX(element, modulus)
+    else: return ntl.ZZ_pX(element, modulus)
 
 class Poly:
     @classmethod
@@ -27,13 +28,32 @@ class Poly:
         cls.indices_auto5 = [ZZ((i * Zmod(cls.N2)(5)) % (cls.N2)) for i in range(cls.N)]
         cls.indices_auto5_poly = ntl.ZZ_pX(cls.indices_auto5, cls.N2)
         cls.sum_of_monomials = Poly(ntl.ZZ_pX([1] * cls.N, cls.modulus))
-              
+
     @classmethod
-    def random(cls, modulus): # 40ms
+    def random(cls, modulus): # ˜40ms
         temp = set_ntl([0], modulus=modulus)
         for i in range(cls.N):
             temp[i] = ntl_ZZ_p_random_element(modulus)
         return Poly(temp, modulus)
+
+    @classmethod
+    def random2(cls, modulus): # 400ms, deprecated, for stupid reasons this is slower
+        assert modulus & modulus - 1 == 0, "Modulus must be a power of 2!"
+        int64 = 2**63
+        quo = ZZ(floor(log(modulus // 2, int64)))
+        int64_quo = int64**quo
+        rest = modulus // int64_quo // 2
+        result = Poly(set_ntl([0], modulus=modulus))
+        for i in range(quo):
+            a = np.random.randint(-int64, int64, size=cls.N)
+            a = set_ntl(list(a), modulus)
+            result += Poly(a, modulus) * (int64**i)
+        if rest > 1:
+            a = np.random.randint(-rest, rest, size=cls.N)
+            a = set_ntl(list(a), modulus)
+            result += Poly(a, modulus) * int64_quo
+        return result
+            
     
     ## CREATION
 
@@ -48,18 +68,19 @@ class Poly:
         if isinstance(coeffs, list):
             assert len(coeffs) <= self.N, f"Too many = {len(coeffs)} coefficients for degree {self.N}!"
             self.c = set_ntl(coeffs, self.modulus)
+        elif isinstance(coeffs, np.ndarray):
+            assert len(coeffs) <= self.N, f"Too many = {len(coeffs)} coefficients for degree {self.N}!"
+            self.c = set_ntl(np.round(coeffs).astype(int), self.modulus)
         elif isinstance(coeffs, Poly):
             self.c = coeffs.c
-        else:
-            self.c = coeffs
+        else: self.c = coeffs
             
     # ARITHMETIC OPERATORS
     
     def __add__(self, other):
         return Poly(self.c + other.c, self.modulus)
     
-    def __radd__(self, other):
-        return self + other
+    def __radd__(self, other): return self + other
 
     def __iadd__(self, other):
         self.c += other.c
@@ -68,15 +89,13 @@ class Poly:
     def __sub__(self, other):
         return Poly(self.c - other.c, self.modulus)
     
-    def __rsub__(self, other):
-        return -self + other
+    def __rsub__(self, other): return -self + other
     
     def __isub__(self, other):
         self.c -= other.c
         return self
 
-    def __neg__(self):
-        return Poly(-self.c, self.modulus)
+    def __neg__(self): return Poly(-self.c, self.modulus)
     
     ## MULTIPLICATION OPERATORS
     
@@ -100,10 +119,8 @@ class Poly:
         return self
     
     def __pow__(self, exponent):
-        if exponent == 0:
-            return Poly([1], self.modulus)
-        elif exponent == 1:
-            return self
+        if exponent == 0: return Poly([1], self.modulus)
+        elif exponent == 1: return self
         elif exponent % 2 == 0:
             result = self ** (exponent // 2)
             return result * result
@@ -176,8 +193,7 @@ class Poly:
         element_modulus = self.element_modulus()
         
         if modulus == 0: # this does convert to ZZX!!
-            if element_modulus == 0:
-                return self
+            if element_modulus == 0: return self
             else: # ~ 8ms
                 zero = ntl.ZZX([0])
                 zero.preallocate_space(self.N)
@@ -188,8 +204,7 @@ class Poly:
         elif element_modulus == 0: # slow! 333ms
             return Poly(set_ntl(self.c.list(), modulus), modulus)
         
-        elif modulus == element_modulus:
-            return self
+        elif modulus == element_modulus: return self
         
         else: # 2-3ms
             tmp = self.c.convert_to_modulus(ntl.ZZ_pContext(modulus))
@@ -204,11 +219,9 @@ class Poly:
         return self
                 
     
-    def mod_quo(self, element, minus=True): # 1-2ms
-        if minus: # mod X^N + 1
-            return element.truncate(self.N) - element.left_shift(-self.N)
-        else:
-            return element.truncate(self.N) + element.left_shift(-self.N)
+    def mod_quo(self, element, minus=True): # mod X^N+1, 1-2ms
+        if minus: return element.truncate(self.N) - element.left_shift(-self.N)
+        else: return element.truncate(self.N) + element.left_shift(-self.N)
            
     ## SHIFTS AND AUTOMORPHISMS
         
@@ -216,8 +229,7 @@ class Poly:
         temp = self.c.left_shift(n % self.N)
         return Poly(self.mod_quo(temp, minus=monom), self.modulus)
     
-    def __rshift__(self, n):
-        return self << (self.N - n)
+    def __rshift__(self, n): return self << (self.N - n)
     
     def monomial_shift(self, n): # 1-2ms
         return self.__lshift__(n, monom=True)
@@ -252,33 +264,21 @@ class Poly:
     
     # ACCESSORS
 
-    def __len__(self):
-        return self.N
-    
-    def __setitem__(self, key, value):
-        self.c[key] = value
-        
-    def __getitem__(self, key):
-        return self.c[key]
-    
-    def leading_coefficient(self):
-        return self.c.leading_coefficient()
+    def __len__(self): return self.N
+    def __setitem__(self, key, value): self.c[key] = value
+    def __getitem__(self, key): return self.c[key]
+    def leading_coefficient(self): return self.c.leading_coefficient()
     
     ## CHECKS
     
-    def is_zero(self):
-        return self.c.is_zero()
-    
-    def is_one(self):
-        return self.c.is_one()
-    
-    def is_monic(self):
-        return self.c.is_monic()
+    def is_zero(self): return self.c.is_zero()
+    def is_one(self): return self.c.is_one()
+    def is_monic(self): return self.c.is_monic()
     
     ## PRINTING AND REPRESENTATION
     
     def centered_list(self): # ~ 20ms
-        # we perform the central reduction in [-Q//2, Q//2)
+        # we perform the central reduction in (-Q//2, Q//2]
         if self.modulus == 0:
             return self.c.list()
         result = [0] * self.N

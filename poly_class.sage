@@ -241,6 +241,7 @@ class Poly:
         return Poly(self.mod_quo(result), self.modulus)
     
     def auto(self, index): # 13 ms atm
+        if index == -1: return self.auto_inverse()
         index = index % (self.N // 2)
         if index == 0: # index must be >= 1
             return self

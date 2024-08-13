@@ -261,7 +261,34 @@ class Poly:
         length = self.c.degree()
         result = -self.c.reverse().left_shift(self.N - length)
         result[0] = -result[self.N]
-        return Poly(result.truncate(self.N), self.modulus)        
+        return Poly(result.truncate(self.N), self.modulus)
+
+    # TRACE AND NORM
+
+    def trace(self, index = None):
+        if self.N != 1 and self.N != 2:
+            assert self.N > 2, "Trace is only defined for N > 2!"
+            assert self.N & self.N - 1 == 0, "N must be a power of 2!"
+            if index is None:
+                index = log(self.N // 2, 2)
+            auto_index = self.N // 4
+            for i in range(index):
+                print('loop with index', auto_index)
+                self += self.auto(auto_index)
+                auto_index //= 2
+        return self
+    
+    def prod_norm(self, index = None): # algebraic norm
+        if self.N != 1 and self.N != 2:
+            assert self.N > 2, "Norm is only defined for N > 2!"
+            assert self.N & self.N - 1 == 0, "N must be a power of 2!"
+            if index is None:
+                index = log(self.N // 2, 2)
+            auto_index = self.N // 4
+            for i in range(index):
+                self *= self.auto(auto_index)
+                auto_index //= 2
+        return self
     
     # ACCESSORS
 

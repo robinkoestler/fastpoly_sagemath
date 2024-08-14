@@ -66,14 +66,14 @@ class Poly:
             print("(Poly): Warning: You are passing a SageMath object as coefficients!")
             coeffs = coeffs.list()
         if isinstance(coeffs, list):
-            assert len(coeffs) <= self.N, f"Too many = {len(coeffs)} coefficients for degree {self.N}!"
             self.c = set_ntl(coeffs, self.modulus)
         elif isinstance(coeffs, np.ndarray):
-            assert len(coeffs) <= self.N, f"Too many = {len(coeffs)} coefficients for degree {self.N}!"
             self.c = set_ntl(np.round(coeffs).astype(int), self.modulus)
         elif isinstance(coeffs, Poly):
             self.c = coeffs.c
-        else: self.c = coeffs
+        else:
+            self.c = coeffs
+        assert self.c.degree() < self.N, f"Degree of polynomial is too high: {self.c.degree()} > {self.N} (setup degree)!"
             
     # ARITHMETIC OPERATORS
     
@@ -263,6 +263,9 @@ class Poly:
         result[0] = -result[self.N]
         return Poly(result.truncate(self.N), self.modulus)
 
+    def imaginary_part(self):
+        return (self.auto(-1) - self).monomial_shift(self.N // 2)
+
     # TRACE AND NORM
 
     def trace(self, index = None):
@@ -273,7 +276,6 @@ class Poly:
                 index = log(self.N // 2, 2)
             auto_index = self.N // 4
             for i in range(index):
-                print('loop with index', auto_index)
                 self += self.auto(auto_index)
                 auto_index //= 2
         return self
@@ -304,11 +306,17 @@ class Poly:
     def is_monic(self): return self.c.is_monic()
     
     ## PRINTING AND REPRESENTATION
+
+    def list(self, full=False):
+        if full:
+            l = self.c.list()
+            return l + [0] * (self.N - len(l))
+        return self.c.list()
     
-    def centered_list(self): # ~ 20ms
+    def centered_list(self, full=False): # ~ 20ms
         # we perform the central reduction in (-Q//2, Q//2]
         if self.modulus == 0:
-            return self.c.list()
+            return self.list(full=full)
         result = [0] * self.N
         for i in range(self.N):
             result[i] = self.c[i].lift_centered()
@@ -346,12 +354,7 @@ class Poly:
     
     def monomial(self, index):
         return self.const(1) << index
-        
-    def list(self, full=False):
-        if full:
-            l = self.c.list()
-            return l + [0] * (self.N - len(l))
-        return self.c.list()
+    
     
     def lift(self):
         if self.modulus == 0:

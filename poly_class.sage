@@ -223,9 +223,10 @@ class Poly:
         if minus: return element.truncate(self.N) - element.left_shift(-self.N)
         else: return element.truncate(self.N) + element.left_shift(-self.N)
            
-    ## SHIFTS AND AUTOMORPHISMS
+    ## SHIFTS
         
     def __lshift__(self, n, monom=False): # about 1-2ms
+        # this rotates the coefficients
         temp = self.c.left_shift(n % self.N)
         return Poly(self.mod_quo(temp, minus=monom), self.modulus)
     
@@ -233,6 +234,14 @@ class Poly:
     
     def monomial_shift(self, n): # 1-2ms
         return self.__lshift__(n, monom=True)
+
+    def left_shift(self, n): # we shift the coefficients only!
+        return Poly(self.c.left_shift(n).truncate(self.N), self.modulus)
+
+    def right_shift(self, n): # we shift the coefficients only!
+        return Poly(self.c.right_shift(n), self.modulus)
+
+    ## AUTOMORPHISMS
     
     def auto5(self): # 11 ms atm
         result = self.NTL_zero()
@@ -355,6 +364,14 @@ class Poly:
     def monomial(self, index):
         return self.const(1) << index
     
+    def reverse(self):
+        result = self.c.reverse().left_shift(self.N - self.c.degree() - 1)
+        return Poly(result.truncate(self.N), self.modulus)
+
+    def to_int(self):
+        for i in range(self.N):
+            self[i] = self[i]._integer_()
+        return self
     
     def lift(self):
         if self.modulus == 0:

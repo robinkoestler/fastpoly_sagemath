@@ -180,9 +180,16 @@ class Poly:
     def newscale(self, other, newmod=False):
         new = self % 0
         for i in range(self.N):
-            new[i] = ZZ(new[i]) // other
+            new[i] = new[i]._integer_() // other
         return new
-        
+
+    def newscale2(self, other):
+        new_modulus = self.modulus // other
+        new = self
+        new = new.center()
+        for i in range(self.N):
+            new[i] = self[i]._integer_() // other
+        return Poly(new % new_modulus, new_modulus)
 
     # MODULAR OPERATORS
     
@@ -214,7 +221,7 @@ class Poly:
         assert self.modulus > 0, "Modulus 0 is not allowed"
         half_modulus = self.modulus // 2 - 1
         for i in range(self.N):
-            if ZZ(self.c[i]) > half_modulus:
+            if self.c[i]._integer_() > half_modulus:
                 self.c[i] -= self.modulus
         return self
                 

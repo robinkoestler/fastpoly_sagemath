@@ -185,7 +185,7 @@ class Poly:
 
     def newscale2(self, other):
         new_modulus = self.modulus // other
-        new = self
+        new = self.__copy__()
         new = new.center()
         for i in range(self.N):
             new[i] = self[i]._integer_() // other
@@ -347,7 +347,7 @@ class Poly:
     # OTHER METHODS
     
     def __copy__(self): # doesn't really work in Sage??
-        return Poly(copy(self.c), self.modulus)
+        return Poly(self.c.__copy__(), self.modulus)
     
     def __eq__(self, other):
         assert isinstance(other, Poly), "Cannot compare with non-Poly object!"

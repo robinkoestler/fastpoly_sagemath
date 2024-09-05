@@ -183,13 +183,16 @@ class Poly:
             new[i] = new[i]._integer_() // other
         return new
 
-    def newscale2(self, other):
-        new_modulus = self.modulus // other
+    def newscale2(self, other, newmod=True):
         new = self.__copy__()
         new = new.center()
         for i in range(self.N):
             new[i] = self[i]._integer_() // other
-        return Poly(new % new_modulus, new_modulus)
+        if newmod:
+            new_modulus = self.modulus // other
+            return Poly(new % new_modulus, new_modulus)
+        else:
+            return Poly(new % self.modulus, self.modulus)
 
     # MODULAR OPERATORS
     
@@ -257,7 +260,6 @@ class Poly:
         return Poly(self.mod_quo(result), self.modulus)
     
     def auto(self, index): # 13 ms atm
-        if index == -1: return self.auto_inverse()
         index = index % (self.N // 2)
         if index == 0: # index must be >= 1
             return self
@@ -292,7 +294,7 @@ class Poly:
                 index = log(self.N // 2, 2)
             auto_index = self.N // 4
             for i in range(index):
-                self += self.auto(auto_index)
+                self = self + self.auto(auto_index)
                 auto_index //= 2
         return self
     
@@ -304,7 +306,7 @@ class Poly:
                 index = log(self.N // 2, 2)
             auto_index = self.N // 4
             for i in range(index):
-                self *= self.auto(auto_index)
+                self = self * self.auto(auto_index)
                 auto_index //= 2
         return self
     

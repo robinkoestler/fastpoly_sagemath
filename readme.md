@@ -13,12 +13,12 @@ It tries to not leave these inbuilt Cython classes, however, sometimes this is i
 
 An element of "Poly" has the attributes:
 
-- modulus: gives the current modulus
 - N: is the ring degree as above
+- modulus: gives the current modulus
 
 The following methods used in FHE are included:
 
-- Fast arithmetic with the operators $+, -, *, **, +=, -=, *=, /, <<, >>$, the last two shifting the polynomials coefficients.
+- Fast arithmetic with the operators $+, -, *, **, +=, -=, *=, <<, >>$, the last two shifting the polynomials coefficients.
 - The modular reduction and modular switching in between $\mathbb{Z}_p[X]$ for $p \in \{0,2,3,4,\dots\}$.
 - Fast evaluation of automorphisms:
   - as $X \longmapsto X^5$ by $\mathrm{auto5()}$,
@@ -31,6 +31,45 @@ The following methods used in FHE are included:
 - The fast multiplication also makes use of the $\mod X^N + 1$ reduction in $\mathrm{mod\_quo()}$.
 - Several other type checks as coefficient manipulation/extraction, comparison functions, conversion to lists, copying, etc.
 
+## Easy usage
+
+1. Import the class as
+
+```python
+load("polyfhe.sage")
+```
+
+2. Setup the class with the parameters you need.
+
+```python
+Poly.setup(N=N, modulus=Q)
+```
+
+3. Create polynomials with
+
+```python
+a = Poly([1, 2, 3], Q)
+b = Poly.random(Q**2)
+c = a.get_monomial(10) # monomial X^{10} on the same modulus as a
+
+```
+
+4. Perform arithmetic operations as usual.
+
+```python
+b = ((a + a) * a) % 256
+c = a.auto(4) # automorphism X -> X^{5^4}
+d = c.scale(2**10) # rescales and rounds correctly
+e = a % 0 # switches to polynomial ring over $\mathbb Z$
+```
+
+5. Print a polynomial with coefficients in the interval $(-Q/2, Q/2]$.
+
+```python
+l = a.centered_list(full=True) # gives back the polynomial as a list centered in (-Q/2, Q/2]
+print(a)
+```
+
 ## Slow parts
 
 Subroutines, which can be improved, include:
@@ -40,4 +79,12 @@ Subroutines, which can be improved, include:
 
 ## Benchmarks
 
-We test our code with the FHE standard $N=2^{15}$ and a modulus $Q = 2^{1000}$ in the file "Test.ipynb".
+We test our code with some usual FHE parameters $N=2^{15}$ and a modulus $Q = 2^{1000}$ in the file "testing_polyfhe.ipynb".
+While most of the functions come close to the performance of a C++ library, there are some slower ones.
+In particular, automorphisms should theoretically be faster than an addition, but they are about 5x slower.
+Other functions like random sampling or norm computation are also comparatively slow, but they are usually not needed to benchmark bootstrapping.
+
+## Drawbacks
+
+- There is no RNS implementation, and, even worse, the modulus must be a power of two.
+This implies that this library only serves a limited purpose, namely for proof-of-concept implementations.

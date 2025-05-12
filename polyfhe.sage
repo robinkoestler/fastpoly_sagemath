@@ -268,15 +268,9 @@ class Poly:
     def get_monomial(self, index):
         return self.get_constant(1) << index
     
-    def reverse(self):
+    def reverse(self): # reverses the polynomial
         result = self.c.reverse().left_shift(self.N - self.c.degree() - 1)
         return Poly(result.truncate(self.N), self.modulus)
-    
-    def lift(self):
-        if self.modulus == 0:
-            return [ZZ(i) for i in self.list(full=True)]
-        else:
-            print(".lift(): Not implemented!")
     
     def clear(self): # Resets this polynomial to zero, changes in place
         self.c.clear()
